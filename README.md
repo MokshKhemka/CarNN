@@ -1,0 +1,8 @@
+A Directory to simulate AI learning cars using NEAT (python library)
+includes a dashboard with visualization of the rays used, neural network, and the fitness of the generation
+The way the library works is that each generation builds upon the best car of the last generation with some random genetical mutations (like natural selection)
+
+To Run:
+run the file "main.py" and press "f" for fast mode, "r" to restart the learning and the different numbers to change tracks.
+
+sometimes, the ai takes longer and sometimes shorter to be completely "trained" so you might want to restart or change maps to see progression

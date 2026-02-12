@@ -71,3 +71,25 @@ class Simulation:
         self.genomes.clear()
 
         sx, sy, sa = self.track.start[0], self.track.start[1], self.track.start_a
+
+        for gid, genome in genomes:
+            genome.fitness = 0.0
+            self.nets.append(neat.nn.FeedForwardNetwork.create(genome, config))
+            self.cars.append(Car(sx,sy,sa))
+            self.genomes.append((gid, genome))
+
+        self.dash.total = len(self.cars)
+        self.dash.track_name = self.track.name
+
+        tick = 0
+        stall = [0] * len(self.cars)
+        prev_cp = [0] * len(self.cars)
+
+        while tick < MAX_TICKS and self.running:
+            tick += 1
+            for ev in pygame.event.get():
+                if ev.type == pygame.QUIT:
+                    self. running = False; pygame.quit(); sys.exit()
+
+            if self.paused:
+                self._render()
