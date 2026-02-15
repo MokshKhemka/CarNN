@@ -4,8 +4,12 @@ import sys
 import neat
 import pygame
 
-from core import(W, H, TRACK_W, PANEL_W, FPS_NORMAL, FPS_FAST, MAX_TICKS, STALL_TICKS,
-                 C_GRASS, C_WHITE, CRED, write_neat_config, ParticleSystem, Car,)
+from core import (
+    W, H, TRACK_W, PANEL_W, FPS_NORMAL, FPS_FAST, MAX_TICKS, STALL_TICKS,
+    C_GRASS, C_WHITE, C_RED,
+    write_neat_config, ParticleSystem, Car,
+)
+
 from tracks import Track, build_tracks, draw_minimap
 from visuals import draw_speedometer, draw_nn, Dashboard
 #get all the car stuff from core later
@@ -180,6 +184,61 @@ class Simulation:
                     bf = f; best = c
         return best
     
-    #do rendering and main later
-                    
-        
+def render(self):
+    self._update_camera()
+    camera_x = self.cam_x
+    camera_y = self.cam_y
+
+    self.track_surf.fill(C_GRASS)
+    track_offset_x = -camera_x
+    track_offset_y = -camera_y
+    self.track_surf.blit(self.track.surface, (track_offset_x, track_offset_y))
+
+    #draw all cars
+    leader = self._leader()
+    for car in self.cars:
+        if not car.alive:
+            continue
+        if car is leader:
+            continue
+        car.draw(self.track_surf, camera_x, camera_y, rays=False)
+
+    if leader is not None:
+        leader.draw(self.track_surf, camera_x, camera_y, rays=True)
+
+    self.screen.blit(self.track_surf, (0,0))
+
+    #gen counter
+    gen_label = self.font_l.render(f"Gen Number {self.gen}", True, C_WHITE)
+    label_width = gen_label.get_width()+20
+    label_height = gen_label.get_height()+10
+    backdrop = pygame.Surface((label_width, label_height), pygame.SRCALPHA)
+    backdrop.fill((0,0,0,160))
+    self.screen.blit(backdrop, (8,8))
+    self.screen.blit(gen_label, (18, 13))
+
+
+    badge_y = 42
+
+    if self.paused:
+        paused_label = self.font_m_render("PAUSD", True, C_RED)
+        self.screen.blit(paused_label, (18, badge_y))
+
+    current_speed = 0.0
+    if leader is not None:
+        current_speed = leader.speed
+    draw_speedometer(self.screen, current_speed, self.font_s)
+
+    all_cars = list(self.cars)
+    draw_minimap(self.screen, self.track, all_cars, camera_x, camera_y)
+
+    #neural network image for the best alive car
+    best_genome = self._best_alive_genome()
+
+    best_inputs = None
+    if leader is not None and leader.alive:
+        best_inputs = leader.nn_inputs()
+
+#finish render and make main
+
+    
