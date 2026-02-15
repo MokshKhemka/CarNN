@@ -1,7 +1,7 @@
 import math
 import random
 import pygame
-from core import TRACK_W, H, C_ROAD, C_GRASS, C_CURB_W, C_LINE, C_WHITE, C_ACCENT
+from core import TRACK_W, H, C_ROAD, C_GRASS, C_CURB_R, C_CURB_W, C_LINE, C_WHITE, C_ACCENT
 
 #ai for this method
 def catmull_rom(pts, segs=22):
@@ -95,7 +95,7 @@ class Track:
              nx, ny = -dy/ln, dx/ln
              
              col = C_CURB_R if (i//2) % 2 ==0 else C_CURB_W
-             for sisde in (1, -1):
+             for side in (1, -1):
                   a = (int(p1[0]+nx*hw*side), int(p1[1]+ny*hw*side))
                   b = (int(p2[0] + nx * hw * side), int(p2[1] + ny * hw * side))
                   pygame.draw.line(surf, col, a, b, 3)
@@ -151,3 +151,73 @@ def build_tracks():
           t.build()
           tracks.append(t)
      return tracks
+
+def draw_minimap(surf, track, cars, cam_x, cam_y):
+     mm_w, mm_h = 180, 130
+     mx, my = 10, H-mm_h-10
+
+     bg = pygame.Surface((mm_w, mm_h), pygame.SRCALPHA)
+     bg.fill((10,10,20,180))
+     surf.blit(bg, (mx, my))
+     pygame.draw.rect(surf, C_ACCENT, (mx, my, mm_w, mm_h), 1, border_radius = 4)
+
+     if not track.path:
+          return
+     
+     #get all the x and y values 
+     all_x_values = []
+     all_y_values = []
+     for point in track.path:
+          all_x_values.append(point[0])
+          all_y_values.append(point[1])
+
+
+     x_min = min(all_x_values)
+     x_max = max(all_x_values)
+     y_min = min(all_y_values)
+     y_max = max(all_y_values)
+
+     #range of track in each axis on screen
+
+     range_x = x_max-x_min
+     range_y = y_max - y_min
+
+     if range_x < 1:
+          range_x = 1
+     if range_y < 1:
+          range_y = 1
+
+     padding = 10
+     usable_width = mm_w-padding*2
+     usable_height = mm_h - padding*2
+
+     def world_to_minimap(world_x, world_y):
+          normalized_x = (world_x-x_min)
+          normalized_y = (world_y - y_min)
+          screen_x = int(mx + padding+normalized_x*usable_width)
+          screen_y = int(my+padding+normalized_y*usable_height)
+          return (screen_x, screen_y)
+     
+     minimap_points = []
+     for point in track.path:
+          converted = world_to_minimap(point[0], point[1])
+          minimap_points.append(converted)
+
+     if len(minimap_points) > 2:
+          track_color = (100, 160, 100)
+          pygame.draw.lines(surf, track_color, True, minimap_points, 2)
+
+     #draw all the cars as a dot
+     for car in cars:
+          if car.alive:
+               car_pos = world_to_minimap(car.x, car.y)
+               pygame.draw.circle(surf, car.color, car_pos, 2)
+
+     view_width = TRACK_W / range_x * usable_width
+     view_hieght = H/range_y * usable_height
+
+     view_x = mx + padding + (cam_x - x_min)/range_x * usable_width
+     view_y = mx + padding + (cam_x - x_min)/range_x * usable_width
+
+     viewport_rect = (int(view_x), int(view_y), int(view_width), int(view_hieght))
+     viewport_color = (255)
