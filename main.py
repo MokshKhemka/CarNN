@@ -63,6 +63,7 @@ class Simulation:
         finally:
             pygame.quit
 
+
     def _eval(self, genomes, config):
         #just scores ai and gives it reward based on progress
         self.gen += 1
@@ -93,3 +94,92 @@ class Simulation:
 
             if self.paused:
                 self._render()
+                self.clock.tick(30)
+                tick -= 1
+                continue
+
+            alive = 0
+            bf = 0.0
+            for i, car in enumerate(self.cars): #add the points and give cars rewards for their progress 
+                if not car.alive:
+                    continue
+                out = self.nets[i].activate(car.nn_inputs())
+                steer = out[0]
+                accel = (out[1]+1)/2
+                brake = max(0, (out[2]+1)/2)
+                car.update(steer, accel, brake, self.particles)
+                car.cast_rays(self.track.mask)
+                car.check_collision(self.track.mask, self.particles)
+                car.check_checkpoints(self.track.checkpoints, tick)
+
+                if car.cp_hit > prev_cp[i]:
+                    stall[i] = tick
+                    prev_cp[i] = car.cp_hit
+                elif tick - stall[i] > STALL_TICKS:
+                    car.alive = False
+
+                f = car.fitness()
+                self.genomes[i][1].fitness = f
+                if car.alive:
+                    alive += 1
+                    bf = max(bf, f)
+
+            self.particles.update()
+            self.dash.live(alive, len(self.cars), bf)
+
+            if alive ==0:
+                break
+
+            if not self.fast or tick %8 == 0:
+                self._render()
+                self.clock.tick(FPS_FAST if self.fast else FPS_NORMAL)
+
+        #end of gen
+        fits = [g.fitness for _, g in self.genomes]
+        sp = self._species_count()
+        self.dash.end_gen(self.gen, fits, sp)
+
+        for gid, genome in self.genomes:
+            if genome.fitness > self.best_genome_fit:
+                self.best_genome_fit = genome.fitness
+                self.best_genome = genome
+
+        if not self.running:
+            pygame.quit; sys.exit()
+
+    def _species_count(self) -> int:
+        try:
+            ids = set()
+            for _, g in self.genomes:
+                sid = getattr(g, "species_id", None)
+                if sid is not None:
+                    ids.add(sid)
+            return max(1, len(ids))
+        except Exception:
+            return 1
+        
+    def _update_camera(self):
+
+        leader = self._leader()
+        if leader:
+            self.cam_tx = leader.x - TRACK_W/2
+            self.cam_ty = leader.y - H/2
+        else:
+            self.cam_tx, self.cam_ty = 0, 0
+        lerp = 0.08
+
+        self.cam_x += (self.cam_tx - self.cam_x)*lerp
+        self.cam_y += (self.cam_ty-self.cam_y)*lerp
+
+    def _leader(self) -> Car|None:
+        best, bf = None, -1.0
+        for c in self.cars:
+            if c.alive:
+                f = c.fitness()
+                if f>bf:
+                    bf = f; best = c
+        return best
+    
+    #do rendering and main later
+                    
+        
