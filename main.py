@@ -184,61 +184,114 @@ class Simulation:
                     bf = f; best = c
         return best
     
-def render(self):
-    self._update_camera()
-    camera_x = self.cam_x
-    camera_y = self.cam_y
+    def render(self):
+        self._update_camera()
+        camera_x = self.cam_x
+        camera_y = self.cam_y
 
-    self.track_surf.fill(C_GRASS)
-    track_offset_x = -camera_x
-    track_offset_y = -camera_y
-    self.track_surf.blit(self.track.surface, (track_offset_x, track_offset_y))
+        self.track_surf.fill(C_GRASS)
+        track_offset_x = -camera_x
+        track_offset_y = -camera_y
+        self.track_surf.blit(self.track.surface, (track_offset_x, track_offset_y))
 
-    #draw all cars
-    leader = self._leader()
-    for car in self.cars:
-        if not car.alive:
-            continue
-        if car is leader:
-            continue
-        car.draw(self.track_surf, camera_x, camera_y, rays=False)
+        #draw all cars
+        leader = self._leader()
+        for car in self.cars:
+            if not car.alive:
+                continue
+            if car is leader:
+                continue
+            car.draw(self.track_surf, camera_x, camera_y, rays=False)
 
-    if leader is not None:
-        leader.draw(self.track_surf, camera_x, camera_y, rays=True)
+        if leader is not None:
+            leader.draw(self.track_surf, camera_x, camera_y, rays=True)
 
-    self.screen.blit(self.track_surf, (0,0))
+        self.screen.blit(self.track_surf, (0,0))
 
-    #gen counter
-    gen_label = self.font_l.render(f"Gen Number {self.gen}", True, C_WHITE)
-    label_width = gen_label.get_width()+20
-    label_height = gen_label.get_height()+10
-    backdrop = pygame.Surface((label_width, label_height), pygame.SRCALPHA)
-    backdrop.fill((0,0,0,160))
-    self.screen.blit(backdrop, (8,8))
-    self.screen.blit(gen_label, (18, 13))
+        #gen counter
+        gen_label = self.font_l.render(f"Gen Number {self.gen}", True, C_WHITE)
+        label_width = gen_label.get_width()+20
+        label_height = gen_label.get_height()+10
+        backdrop = pygame.Surface((label_width, label_height), pygame.SRCALPHA)
+        backdrop.fill((0,0,0,160))
+        self.screen.blit(backdrop, (8,8))
+        self.screen.blit(gen_label, (18, 13))
 
 
-    badge_y = 42
+        badge_y = 42
 
-    if self.paused:
-        paused_label = self.font_m_render("PAUSD", True, C_RED)
-        self.screen.blit(paused_label, (18, badge_y))
+        if self.paused:
+            paused_label = self.font_m_render("PAUSD", True, C_RED)
+            self.screen.blit(paused_label, (18, badge_y))
 
-    current_speed = 0.0
-    if leader is not None:
-        current_speed = leader.speed
-    draw_speedometer(self.screen, current_speed, self.font_s)
+        current_speed = 0.0
+        if leader is not None:
+            current_speed = leader.speed
+        draw_speedometer(self.screen, current_speed, self.font_s)
 
-    all_cars = list(self.cars)
-    draw_minimap(self.screen, self.track, all_cars, camera_x, camera_y)
+        all_cars = list(self.cars)
+        draw_minimap(self.screen, self.track, all_cars, camera_x, camera_y)
 
-    #neural network image for the best alive car
-    best_genome = self._best_alive_genome()
+        #neural network image for the best alive car
+        best_genome = self._best_alive_genome()
 
-    best_inputs = None
-    if leader is not None and leader.alive:
-        best_inputs = leader.nn_inputs()
+        best_inputs = None
+        if leader is not None and leader.alive:
+            best_inputs = leader.nn_inputs()
 
-#finish render and make main
+        nn_x = TRACK_W - 290
+        nn_y = H-240
+        nn_width = 280
+        nn_hieght = 230
+        draw_nn(self.screen, best_genome, self.config, nn_x, nn_y, nn_width, nn_hieght, self.font_s, best_inputs)
+        
+        #dashboard
+        self.dash.draw(self.screen, self.font_l, self.font_m, self.font_s)
+        pygame.display.flip()
+    def _best_alive_genome(self):
+        #find best current car
+        best_fitness = -1.0
+        best_genome = None
+
+        for i, car in enumerate(self.cars):
+            if not car.alive:
+                continue
+
+            fitness = car.fitness()
+            if fitness > best_fitness:
+                best_fitness = fitness
+                best_genome = self.genomes[i][1]
+
+        if best_genome is None:
+            return self.best_genome
+        return best_genome
+    
+    def _key(self, key):
+        if key == pygame.K_SPACE:
+            self.paused = not self.paused
+            return
+        elif key == pygame.K_f:
+            self.fast = not self.fast
+
+        elif key == pygame.K_r:
+            self.restart()
+            return
+        
+        #track switching
+        track_keys = [pygame.K_1, pygame.K_2, pygame.K_3,
+            pygame.K_4, pygame.K_5, pygame.K_6,]
+        if key in track_keys:
+            track_index = key - pygame.K_1
+            if track_index < len(self.tracks):
+                self.ti = track_index
+                self.track = self.tracks[track_index]
+                self.particles = ParticleSystem()
+                #kill the cars
+                for car in self.cars:
+                    car.alive = False
+
+    #make restart and main
+
+
 
     

@@ -220,4 +220,7 @@ def draw_minimap(surf, track, cars, cam_x, cam_y):
      view_y = mx + padding + (cam_x - x_min)/range_x * usable_width
 
      viewport_rect = (int(view_x), int(view_y), int(view_width), int(view_hieght))
-     viewport_color = (255)
+     viewport_color = (255, 255, 255, 80)
+
+     pygame.draw.rect(surf. viewport_color, viewport_rect, 1)
+     

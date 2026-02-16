@@ -1,10 +1,11 @@
 from __future__ import annotations
+
 import math
 import os
 import random
 import tempfile
-from dataclasses import dataclass
 import pygame
+
 
 W, H = 1440, 860
 PANEL_W = 350
@@ -137,3 +138,20 @@ class Particle:
     kind: str = "tyre"
     color: tuple = (80,80,80) #gray
     size: float = 2.0
+
+class ParticleSystem:
+    def __init__(self):
+        self.particles: list[Particle] = []
+
+    def emit_tyre(self, x, y):
+        if len(self.particles) < MAX_PARTICLES:
+            self.particles.append([x, y, 0, 0, TYRE_MARk_LIFE, TYRE_MARk_LIFE])
+
+    def emit_sparks(self, x, y, count = 4):
+        for _ in range(count):
+            a = random.unifrom(0, math.tau)
+            spd = random.uniform(1, 3)
+            if len(self.particles) < MAX_PARTICLES:
+                self.particles.append([x, y, math.cos(a)*spd, math.sin(a)*spd, SPARK_LIFE, SPARK_LIFE])
+
+
