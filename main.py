@@ -7,32 +7,30 @@ import pygame
 from core import (
     W, H, TRACK_W, PANEL_W, FPS_NORMAL, FPS_FAST, MAX_TICKS, STALL_TICKS,
     C_GRASS, C_WHITE, C_RED,
-    write_neat_config, ParticleSystem, Car,
+    write_neat_config, Car,
 )
 
-from tracks import Track, build_tracks, draw_minimap
-from visuals import draw_speedometer, draw_nn, Dashboard
-#get all the car stuff from core later
+from tracks import Track, build_base_track, draw_minimap, mutate_track, BASE_TRACK
+from visuals import draw_nn, Dashboard
 
 
 
 class Simulation:
     def __init__(self, pop_size: int = 120):
         pygame.init()
-        self.screen = pygame.display.set_mode((W, H)) #get width and height later too
+        self.screen = pygame.display.set_mode((W, H)) 
         pygame.display.set_caption(
             "Self-Driving Car NN"
         )
         self.clock = pygame.time.Clock()
-        self.track_surf = pygame.Surface((TRACK_W, H)) #also will get from core
+        self.track_surf = pygame.Surface((TRACK_W, H))
+
         self.pop_size = pop_size #amnt of cars per generation
         self.cfg_path = write_neat_config(pop_size)
         self.config = neat.Config(neat.DefaultGenome, neat.DefaultReproduction, neat.DefaultSpeciesSet, neat.DefaultStagnation, self.cfg_path,)
-        self.tracks = build_tracks() #Ill add this method later, and make like 7 differnet tracks or something
+        self.tracks = build_base_track() #Ill add this method later, and make like 7 differnet tracks or something
         self.ti = 0
-        self.track: Track = self.tracks[0]
 
-        self.particles = ParticleSystem()
         self.dash = Dashboard()
         self.dash.track_name = self.track.name
 
@@ -44,6 +42,8 @@ class Simulation:
         self.paused = False
         self.fast = False
         self.gen = 0
+        self.difficulty = 1.0 #how hard track is 
+        self.mutations = 0
 
         self.cam_x, self.cam_y = 0.0,0.0
         self.cam_tx, self.cam_ty = 0.0,0.0 #make cameras follow cars
@@ -65,7 +65,7 @@ class Simulation:
         except SystemExit:
             pass
         finally:
-            pygame.quit
+            pygame.quit()
 
 
     def _eval(self, genomes, config):
@@ -94,7 +94,9 @@ class Simulation:
             tick += 1
             for ev in pygame.event.get():
                 if ev.type == pygame.QUIT:
-                    self. running = False; pygame.quit(); sys.exit()
+                    self.running = False; pygame.quit(); sys.exit()
+                if ev.type == pygame.KEYDOWN:
+                    self._key(ev.key)
 
             if self.paused:
                 self._render()
@@ -111,9 +113,10 @@ class Simulation:
                 steer = out[0]
                 accel = (out[1]+1)/2
                 brake = max(0, (out[2]+1)/2)
-                car.update(steer, accel, brake, self.particles)
+
+                car.update(steer, accel, brake)
                 car.cast_rays(self.track.mask)
-                car.check_collision(self.track.mask, self.particles)
+                car.check_collision(self.track.mask)
                 car.check_checkpoints(self.track.checkpoints, tick)
 
                 if car.cp_hit > prev_cp[i]:
@@ -128,7 +131,6 @@ class Simulation:
                     alive += 1
                     bf = max(bf, f)
 
-            self.particles.update()
             self.dash.live(alive, len(self.cars), bf)
 
             if alive ==0:
@@ -147,6 +149,8 @@ class Simulation:
             if genome.fitness > self.best_genome_fit:
                 self.best_genome_fit = genome.fitness
                 self.best_genome = genome
+
+        self._evolve_track()
 
         if not self.running:
             pygame.quit; sys.exit()
@@ -184,7 +188,7 @@ class Simulation:
                     bf = f; best = c
         return best
     
-    def render(self):
+    def _render(self):
         self._update_camera()
         camera_x = self.cam_x
         camera_y = self.cam_y
@@ -221,13 +225,12 @@ class Simulation:
         badge_y = 42
 
         if self.paused:
-            paused_label = self.font_m_render("PAUSD", True, C_RED)
+            paused_label = self.font_m.render("PAUSD", True, C_RED)
             self.screen.blit(paused_label, (18, badge_y))
 
         current_speed = 0.0
         if leader is not None:
             current_speed = leader.speed
-        draw_speedometer(self.screen, current_speed, self.font_s)
 
         all_cars = list(self.cars)
         draw_minimap(self.screen, self.track, all_cars, camera_x, camera_y)
@@ -242,8 +245,8 @@ class Simulation:
         nn_x = TRACK_W - 290
         nn_y = H-240
         nn_width = 280
-        nn_hieght = 230
-        draw_nn(self.screen, best_genome, self.config, nn_x, nn_y, nn_width, nn_hieght, self.font_s, best_inputs)
+        nn_height = 230
+        draw_nn(self.screen, best_genome, self.config, nn_x, nn_y, nn_width, nn_height, self.font_s, best_inputs)
         
         #dashboard
         self.dash.draw(self.screen, self.font_l, self.font_m, self.font_s)
@@ -285,13 +288,58 @@ class Simulation:
             if track_index < len(self.tracks):
                 self.ti = track_index
                 self.track = self.tracks[track_index]
-                self.particles = ParticleSystem()
                 #kill the cars
                 for car in self.cars:
                     car.alive = False
 
-    #make restart and main
+
+def _evolve_track(self):
+    #find where all the cars died
+    death_positions = []
+    for car in self.cars:
+        if not car.alive:
+            death_positions.append((car.x, car.y))
+
+    #make it a little harder
+    self.difficulty += 0.05
+
+    self.track = mutate_track(self.track, death_positions, self.difficulty) #add this function to track
+    self.mutations += 1
+
+    self.dash.difficulty = self.difficulty
+    self.dash.track_name = self.track.name
 
 
+def main():
+    #main is ai assited
+    # read command-line flags (--fast, --pop)
+    parser = argparse.ArgumentParser(description="NEAT Self-Driving Car Evolution")
+    parser.add_argument("--fast", action="store_true", help="Start in fast mode")
+    parser.add_argument("--pop", type=int, default=120, help="Population size")
+    args = parser.parse_args()
 
-    
+    # create the simulation
+    sim = Simulation(pop_size=args.pop)
+
+    # if the user passed --fast, enable fast mode right away
+    if args.fast:
+        sim.fast = True
+
+    # welcome banner
+    print()
+    print("  NEAT Self-Driving Car Evolution Simulator")
+    print("  -----------------------------------------")
+    print("  The track evolves to fight the AI each generation.")
+    print("  Easy sections get harder. Hard sections ease up.")
+    print()
+    print("  Controls:")
+    print("    SPACE  — Pause / Resume")
+    print("    F      — Toggle fast mode")
+    print("    R      — Reset everything")
+    print()
+
+    # start the main loop
+    sim.run()
+
+if __name__ == "__main__":
+    main()
