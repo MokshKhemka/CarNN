@@ -3,9 +3,18 @@ import random
 import pygame
 from core import TRACK_W, H, C_ROAD, C_GRASS, C_CURB_R, C_CURB_W, C_LINE, C_WHITE, C_ACCENT
 
+
+#constraints for the track mutations
+MIN_ROAD_W = 38
+MAX_ROAD_W = 90
+MIN_POINT_DIST = 80
+MAX_POINTS = 14
+MIN_TURN_ANGLE = 35
+
 #ai for this method
 def catmull_rom(pts, segs=22):
     """closed catmull-rom spline, turns control points into a smooth loop"""
+    #this method was created with AI
     out = []
     n = len(pts)
     for i in range(n):
@@ -22,6 +31,7 @@ def catmull_rom(pts, segs=22):
                         (-p0[1] + 3 * p1[1] - 3 * p2[1] + p3[1]) * ttt)
             out.append((int(x), int(y)))
     return out
+
 class Track:
     def __init_(self, name, pts, road_w=64, start = None, start_a=-90.0):
         self.name = name
@@ -33,10 +43,12 @@ class Track:
         self.surface = None
         self.mask
         self.checkpoints = []
+        self.difficulty = 1.0
 
     def build(self):
           self.path = catmull_rom(self.pts)
-
+          self.checkpoints = []
+          
           if len(self.parth) >= 2:
                sx, sy = self.start
                closest = 0
