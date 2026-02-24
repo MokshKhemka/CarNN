@@ -114,33 +114,23 @@ def mutate_track(track, death_spots, difficulty):
      n = len(pts)
      road_w = float(track.road_w)
 #how strong the changes should be    
-     strength = min(5+difficulty*5, 60)
+     strength = min(5+difficulty*6, 90)
 
-     deaths = [0]*n
-     #count deaths near each point
-
-     for death_x, death_y in death_spots:
-          closest_point = 0
-          closest_dist = float("inf")
-          for i in range(n):
-               dx = death_x - pts[i][0]
-               dy = death_y - pts[i][1]
-               dist = math.sqrt(dx*dx+dy*dy) #find net distance (using right triange- pythogorean formula)
-
-               if dist < closest_dist:
-                    closest_dist = dist
-                    closest_point = i
-          deaths[closest_point] += 1
-     total_deaths = sum(deaths)
-
-  
-     avg_deaths = total_deaths/n
-     if(avg_deaths == 0):
-          avg_deaths = 1/n
-
-     #then move points based on deaths with randomness (dont know how yet)
-          
-         
+     #move each point randomly
+     for i in range(n):
+          pts[i][0] += random.uniform(-strength, strength)
+          pts[i][1] += random.uniform(-strength, strength)
+          pts[i][0], pts[i][1] = trap(pts[i][0], pts[i][1])
+     #chance a point moves extra
+     if random.random() < 0.1:
+          random = random.randint(0, n-1)
+          pts[random][0] += random.unifrom(-strength*0.5, strength*0.5)
+          pts[random][1] += random.uniform(-strength*0.5, strength*0.5)
+          pts[random][0], pts[random][1] = trap(pts[random][0], pts[random][1])
+     #mutate track more later
+     return 
+     
+               
 
 BASE_TRACK = dict(
     name="Evolving Track",
